@@ -1,5 +1,4 @@
-mod tests;
-
+use std::borrow::BorrowMut;
 use std::collections::{HashMap, VecDeque};
 use std::fmt::{Debug, Display};
 use std::fs::*;
@@ -10,7 +9,7 @@ use std::str::FromStr;
 #[derive(Debug)]
 pub struct Edge<T> {
     to_node: u32,
-    edge: T
+    value: T
 }
 
 #[derive(Debug)]
@@ -32,7 +31,7 @@ where T: Display + FromStr
             let relation = Vec::new();
             self.nodes.insert(node_id, relation);
         }
-        else { println!("This node exists") };
+        else { panic!("This node exists") };
     }
 
     pub fn delete_node(&mut self, node_id: u32) {
@@ -49,11 +48,18 @@ where T: Display + FromStr
         ) {
             panic!("This node doesn't exist");
         }
+
         let relation = Edge {
             to_node: end_node,
-            edge: edge_value
+            value: edge_value
         };
+
         if let Some(vector_edges) = self.nodes.get_mut(&begin_node){
+            for v in vector_edges.iter() {
+                if v.to_node == end_node {
+                    panic!("This relation exists");
+                }
+            }
             vector_edges.push(relation);
         }
     }
@@ -104,8 +110,8 @@ where T: Display + FromStr
 
         for i in hashmap_keys.iter(){
             for edge in &self.nodes[i] {
-                let line: String = i.to_string() + " " + &*edge.to_node.to_string() + " " +
-                    &*edge.edge.to_string() + "\n";
+                let line: String = i.to_string() + "\t" + &*edge.to_node.to_string() + "\t" +
+                    &*edge.value.to_string() + "\n";
                 file.write(line.as_bytes()).expect("Unable to write data");
             }
         }
@@ -130,9 +136,9 @@ where T: Display + FromStr
                 let node_id = parts[0].parse::<u32>().unwrap();
                 let edge = Edge {
                     to_node: parts[1].parse::<u32>().unwrap(),
-                    edge: parts[2].parse::<T>().unwrap(),
+                    value: parts[2].parse::<T>().unwrap(),
                 };
-                self.add_relation_to_node(node_id, edge.to_node, edge.edge);
+                self.add_relation_to_node(node_id, edge.to_node, edge.value);
             }
         }
     }
@@ -142,9 +148,77 @@ where T: Display + FromStr
             println!("Vertex id: {}", relation);
             println!("\tRelations: ");
             for edges in &self.nodes[relation] {
-                println!("\t\tTo node: {}\tEdge value: {}", edges.to_node, edges.edge);
+                println!("\t\tTo node: {}\tEdge value: {}", edges.to_node, edges.value);
             }
         }
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use crate::{Edge, Graph};
+
+    #[test]
+    #[should_panic(expected = "This node exists")]
+    fn add_node() {
+        let mut graph = Graph::<u32>::new_graph();
+        graph.add_node(1);
+        graph.add_node(1);
+    }
+
+    #[test]
+    fn delete_node() {
+        let mut graph = Graph::<u32>::new_graph();
+        graph.add_node(1);
+        graph.add_node(2);
+        graph.delete_node(2);
+        let result: bool = false;
+        assert_eq!(graph.nodes.contains_key(&2), result);
+    }
+
+    #[test]
+    #[should_panic(expected = "This node doesn't exist")]
+    fn add_relation_to_node_1test() {
+        let mut graph = Graph::<u32>::new_graph();
+        graph.add_node(1);
+        graph.add_node(2);
+        graph.add_relation_to_node(3, 2, 5);
+    }
+
+    #[test]
+    #[should_panic(expected = "This relation exists")]
+    fn add_relation_to_node_2test() {
+        let mut graph = Graph::<u32>::new_graph();
+        graph.add_node(1);
+        graph.add_node(2);
+        graph.add_relation_to_node(1, 2, 5);
+        graph.add_relation_to_node(1, 2, 5);
+    }
+
+    #[test]
+    fn delete_relation() {
+        let mut graph = Graph::<u32>::new_graph();
+        graph.add_node(1);
+        graph.add_node(2);
+        graph.add_relation_to_node(1, 2, 5);
+        graph.delete_relation(1, 2);
+        assert_eq!(graph.nodes.get_mut(&1).unwrap().len(), 0);
+    }
+
+    #[test]
+    fn serialize_deserialize_graph() {
+        let mut graph: Graph<u32> = Graph::new_graph();
+        graph.add_node(1);
+        graph.add_node(2);
+        graph.add_node(3);
+        graph.add_relation_to_node(1, 2, 5);
+        graph.add_relation_to_node(1, 3, 10);
+        graph.serialize("graph-test.rs".to_string());
+
+        let mut new_graph: Graph<u32> = Graph::new_graph();
+        new_graph.deserialize("graph-test.rs".to_string());
+        assert_eq!(new_graph.print_graph(), graph.print_graph());
     }
 
 }
