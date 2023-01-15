@@ -6,7 +6,7 @@ use std::io::{BufRead, BufReader, Write};
 use std::str::FromStr;
 
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Edge<T> {
     to_node: u32,
     value: T
@@ -160,8 +160,15 @@ mod tests {
     use crate::{Edge, Graph};
 
     #[test]
-    #[should_panic(expected = "This node exists")]
     fn add_node() {
+        let mut graph = Graph::<u32>::new_graph();
+        graph.add_node(1);
+        assert_eq!(graph.nodes.len(), 1);
+    }
+
+    #[test]
+    #[should_panic(expected = "This node exists")]
+    fn add_node_with_panic() {
         let mut graph = Graph::<u32>::new_graph();
         graph.add_node(1);
         graph.add_node(1);
@@ -173,8 +180,7 @@ mod tests {
         graph.add_node(1);
         graph.add_node(2);
         graph.delete_node(2);
-        let result: bool = false;
-        assert_eq!(graph.nodes.contains_key(&2), result);
+        assert!(!graph.nodes.contains_key(&2))
     }
 
     #[test]
@@ -218,7 +224,7 @@ mod tests {
 
         let mut new_graph: Graph<u32> = Graph::new_graph();
         new_graph.deserialize("graph-test.rs".to_string());
-        assert_eq!(new_graph.print_graph(), graph.print_graph());
+        assert_eq!(new_graph.nodes, graph.nodes);
     }
 
 }
